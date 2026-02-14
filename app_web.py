@@ -6,17 +6,54 @@ import os
 # 1. CONFIGURAÇÃO E ESTILO
 st.set_page_config(page_title="Motorista Pro Dashboard", page_icon="🏎️", layout="wide")
 
+# --- SISTEMA MULTI-UTILIZADOR ---
 
+USUARIOS = {
+    "teste": "teste",
+    "gustavo": "123456",
+    "joao": "motorista77"
+}
 
-# CSS 
+def login():
+    if "autenticado" not in st.session_state:
+        st.session_state.autenticado = False
+        st.session_state.usuario_atual = None
+
+    if not st.session_state.autenticado:
+        st.markdown("<h1 style='text-align: center;'>🔐 Login Driver Pro</h1>", unsafe_allow_html=True)
+        
+        col1, col2, col3 = st.columns([1, 1.5, 1])
+        with col2:
+            with st.form("form_login"):
+                user_input = st.text_input("Utilizador").lower().strip()
+                senha_input = st.text_input("Senha", type="password")
+                botao_entrar = st.form_submit_button("Entrar", use_container_width=True)
+                
+                if botao_entrar:
+                    if user_input in USUARIOS and USUARIOS[user_input] == senha_input:
+                        st.session_state.autenticado = True
+                        st.session_state.usuario_atual = user_input
+                        st.rerun()
+                    else:
+                        st.error("Utilizador ou senha incorretos")
+        return False
+    return True
+
+# Executa o login
+if not login():
+    st.stop()
+
+# --- DEFINIÇÃO DO FICHEIRO POR UTILIZADOR ---
+usuario_logado = st.session_state.usuario_atual
+NOME_FICHEIRO = f"historico_{usuario_logado}.csv"
+
+# --- CSS DE ESTILO ---
 st.markdown("""
     <style>
-    /* 1. Fundo da Barra Lateral */
     [data-testid="stSidebar"] { 
         background-color: #111827 !important; 
     }
     
-    /* 2. NOMES DOS CAMPOS (Labels) - Forçar Branco Puro */
     [data-testid="stSidebar"] label p, 
     [data-testid="stSidebar"] .stMarkdown p,
     [data-testid="stSidebar"] h2, 
@@ -25,17 +62,15 @@ st.markdown("""
         opacity: 1 !important;
         font-weight: 800 !important;
         font-size: 1.1rem !important;
-        text-shadow: 1px 1px 2px rgba(0,0,0,0.8); /* Sombra para destacar no fundo escuro */
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
     }
 
-    /* 3. NÚMEROS DENTRO DAS CAIXAS - Forçar Preto no fundo Branco */
     [data-testid="stSidebar"] input {
-        color: #000000 !important; /* Cor do número */
-        background-color: #FFFFFF !important; /* Cor do fundo da caixa */
-        -webkit-text-fill-color: #000000 !important; /* Garante que o número apareça em alguns navegadores */
+        color: #000000 !important;
+        background-color: #FFFFFF !important;
+        -webkit-text-fill-color: #000000 !important;
     }
 
-    /* 4. Estilo do Card Principal */
     .main-card {
         background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
         color: white; padding: 25px; border-radius: 15px;
@@ -43,7 +78,6 @@ st.markdown("""
         margin-bottom: 20px;
     }
 
-    /* 5. Texto da Meta Colorido e Limpo */
     .meta-texto {
         font-size: 1.2rem;
         font-weight: bold;
@@ -53,8 +87,6 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-NOME_FICHEIRO = "historico_ganhos.csv"
-
 def data_por_extenso_limpa(dt):
     meses = {1: "janeiro", 2: "fevereiro", 3: "março", 4: "abril", 5: "maio", 6: "junho", 
              7: "julho", 8: "agosto", 9: "setembro", 10: "outubro", 11: "novembro", 12: "dezembro"}
@@ -63,9 +95,9 @@ def data_por_extenso_limpa(dt):
     return f"{dias_semana[dt.weekday()]}, {dt.day} de {meses[dt.month]} de {dt.year}"
 
 # --- BARRA LATERAL ---
-# --- BARRA LATERAL (ORGANIZADA COM TUDO) ---
 with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/235/235861.png", width=100)
+    st.markdown(f"### Olá, {usuario_logado.capitalize()}!")
     
     # --- PARTE 1: NOVO LANÇAMENTO ---
     st.markdown("<h2 style='color: white;'>📝 Novo Registro</h2>", unsafe_allow_html=True)
@@ -92,7 +124,7 @@ with st.sidebar:
         st.balloons()
         st.rerun()
 
-    st.markdown("---") # Linha divisória
+    st.markdown("---")
 
     # --- PARTE 2: APAGAR REGISTRO ---
     st.markdown("<h3 style='color: white;'>🗑️ Gerenciar Histórico</h3>", unsafe_allow_html=True)
@@ -100,37 +132,36 @@ with st.sidebar:
     if os.path.isfile(NOME_FICHEIRO):
         df_temp = pd.read_csv(NOME_FICHEIRO)
         if not df_temp.empty:
-            # Lista as datas para apagar
             lista_datas = df_temp["Data_Extenso"].tolist()
             dia_para_apagar = st.selectbox("Apagar dia específico:", lista_datas)
             
             if st.button("Confirmar Exclusão", type="secondary", use_container_width=True):
-                # Filtra para remover o dia
                 df_novo = df_temp[df_temp["Data_Extenso"] != dia_para_apagar]
                 df_novo.to_csv(NOME_FICHEIRO, index=False)
                 st.warning(f"Removido: {dia_para_apagar}")
                 st.rerun()
-        else:
-            st.write("Sem registros para apagar.")
-
-    st.markdown("---") # Linha divisória
-
-    # --- PARTE 3: META ---
+    
+    st.markdown("---")
+    
+    # --- PARTE 3: META E LOGOUT ---
     st.markdown("<h3 style='color: white;'>🎯 Meta do Mês</h3>", unsafe_allow_html=True)
     meta_valor = st.number_input("Definir Meta (R$)", min_value=1.0, value=3000.0)
 
+    st.markdown("---")
+    if st.button("🚪 Sair / Logoff", use_container_width=True):
+        st.session_state.autenticado = False
+        st.session_state.usuario_atual = None
+        st.rerun()
+
 # --- ÁREA PRINCIPAL ---
-st.title("🏎️ Motorista de Aplicativo Pro")
+st.title(f"🏎️ Painel de {usuario_logado.capitalize()}")
 
 if os.path.isfile(NOME_FICHEIRO):
     df_hist = pd.read_csv(NOME_FICHEIRO)
     if not df_hist.empty:
-        # CÁLCULO DA META 
         total_acumulado = df_hist["Lucro"].sum()
         progresso = min(total_acumulado / meta_valor, 1.0)
         
-        
-        # EXIBIÇÃO DA META NA ÁREA PRINCIPAL
         st.markdown(f"""
             <div class="meta-texto">
                 Progresso: <span style='color: #10b981;'>R$ {total_acumulado:.2f}</span> 
@@ -139,13 +170,10 @@ if os.path.isfile(NOME_FICHEIRO):
         """, unsafe_allow_html=True)
         st.progress(progresso)
         
-     
-        
         ultimo = df_hist.iloc[-1]
         lucro_val = float(ultimo['Lucro'])
         cor_lucro = "#10b981" if lucro_val > 0 else "#ef4444"
 
-        # CARD DE DESTAQUE
         st.markdown(f"""
             <div class="main-card">
                 <p style="color: #9ca3af; margin-bottom: 5px;">Último Fechamento: {ultimo['Data_Extenso']}</p>
@@ -154,7 +182,6 @@ if os.path.isfile(NOME_FICHEIRO):
             </div>
         """, unsafe_allow_html=True)
 
-        # MÉTRICAS COM MOLDURA
         m1, m2, m3, m4 = st.columns(4)
         with m1:
             with st.container(border=True):
@@ -170,7 +197,6 @@ if os.path.isfile(NOME_FICHEIRO):
                 eficiencia = (ultimo['Lucro']/ultimo['Faturamento'])*100 if ultimo['Faturamento'] > 0 else 0
                 st.metric("📈 Margem", f"{eficiencia:.0f}%")
 
-        # GRÁFICOS EM ABAS
         st.markdown("### 📊 Evolução do Desempenho")
         tab1, tab2 = st.tabs(["Lucro Líquido", "Ganhos Brutos"])
         with tab1:
@@ -178,17 +204,17 @@ if os.path.isfile(NOME_FICHEIRO):
         with tab2:
             st.area_chart(df_hist.set_index("Data_Extenso")["Faturamento"], color="#3b82f6")
 
-# --- TABELA HISTÓRICO ---
-st.subheader("📁 Histórico de Atividades")
-if os.path.isfile(NOME_FICHEIRO):
-    st.dataframe(
-        df_hist[["Data_Extenso", "Faturamento", "Despesas", "Lucro", "Horas"]].iloc[::-1],
-        use_container_width=True, hide_index=True,
-        column_config={
-            "Data_Extenso": "Data",
-            "Faturamento": st.column_config.NumberColumn("Ganhos", format="R$ %.2f"),
-            "Despesas": st.column_config.NumberColumn("Gastos", format="R$ %.2f"),
-            "Lucro": st.column_config.NumberColumn("Lucro", format="R$ %.2f"),
-            "Horas": st.column_config.NumberColumn("Tempo", format="%.1f horas")
-        }
-    )
+        st.subheader("📁 Histórico de Atividades")
+        st.dataframe(
+            df_hist[["Data_Extenso", "Faturamento", "Despesas", "Lucro", "Horas"]].iloc[::-1],
+            use_container_width=True, hide_index=True,
+            column_config={
+                "Data_Extenso": "Data",
+                "Faturamento": st.column_config.NumberColumn("Ganhos", format="R$ %.2f"),
+                "Despesas": st.column_config.NumberColumn("Gastos", format="R$ %.2f"),
+                "Lucro": st.column_config.NumberColumn("Lucro", format="R$ %.2f"),
+                "Horas": st.column_config.NumberColumn("Tempo", format="%.1f horas")
+            }
+        )
+else:
+    st.info("Bem-vindo! Comece adicionando o seu primeiro registro na barra lateral.")
