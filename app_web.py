@@ -63,9 +63,12 @@ def data_por_extenso_limpa(dt):
     return f"{dias_semana[dt.weekday()]}, {dt.day} de {meses[dt.month]} de {dt.year}"
 
 # --- BARRA LATERAL ---
+# --- BARRA LATERAL (ORGANIZADA COM TUDO) ---
 with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/235/235861.png", width=100)
-    st.markdown("## 📝 Novo Registro")
+    
+    # --- PARTE 1: NOVO LANÇAMENTO ---
+    st.markdown("<h2 style='color: white;'>📝 Novo Registro</h2>", unsafe_allow_html=True)
     
     data_sel = st.date_input("Data da Atividade", datetime.now(), format="DD/MM/YYYY")
     faturamento = st.number_input("Ganhos Brutos (R$)", min_value=0.0)
@@ -79,16 +82,41 @@ with st.sidebar:
         novo_registo = {
             "Data_Simples": data_sel.strftime("%Y-%m-%d"),
             "Data_Extenso": data_por_extenso_limpa(data_sel),
-            "Faturamento": faturamento, "Despesas": despesas,
-            "Lucro": lucro, "Horas": horas
+            "Faturamento": faturamento, 
+            "Despesas": despesas,
+            "Lucro": lucro, 
+            "Horas": horas
         }
         df = pd.DataFrame([novo_registo])
         df.to_csv(NOME_FICHEIRO, mode='a', index=False, header=not os.path.isfile(NOME_FICHEIRO))
         st.balloons()
         st.rerun()
 
-    st.markdown("---")
-    st.markdown("### 🎯 Meta do Mês")
+    st.markdown("---") # Linha divisória
+
+    # --- PARTE 2: APAGAR REGISTRO ---
+    st.markdown("<h3 style='color: white;'>🗑️ Gerenciar Histórico</h3>", unsafe_allow_html=True)
+    
+    if os.path.isfile(NOME_FICHEIRO):
+        df_temp = pd.read_csv(NOME_FICHEIRO)
+        if not df_temp.empty:
+            # Lista as datas para apagar
+            lista_datas = df_temp["Data_Extenso"].tolist()
+            dia_para_apagar = st.selectbox("Apagar dia específico:", lista_datas)
+            
+            if st.button("Confirmar Exclusão", type="secondary", use_container_width=True):
+                # Filtra para remover o dia
+                df_novo = df_temp[df_temp["Data_Extenso"] != dia_para_apagar]
+                df_novo.to_csv(NOME_FICHEIRO, index=False)
+                st.warning(f"Removido: {dia_para_apagar}")
+                st.rerun()
+        else:
+            st.write("Sem registros para apagar.")
+
+    st.markdown("---") # Linha divisória
+
+    # --- PARTE 3: META ---
+    st.markdown("<h3 style='color: white;'>🎯 Meta do Mês</h3>", unsafe_allow_html=True)
     meta_valor = st.number_input("Definir Meta (R$)", min_value=1.0, value=3000.0)
 
 # --- ÁREA PRINCIPAL ---
